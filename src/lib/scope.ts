@@ -31,17 +31,6 @@ import * as clsxMod from "clsx";
 import * as cvaMod from "class-variance-authority";
 import * as twMergeMod from "tailwind-merge";
 
-// 8bitcn components
-import { Button as BitButton } from "@/components/ui/8bit/button";
-import { Card as BitCard, CardHeader as BitCardHeader, CardFooter as BitCardFooter, CardTitle as BitCardTitle, CardAction as BitCardAction, CardDescription as BitCardDescription, CardContent as BitCardContent } from "@/components/ui/8bit/card";
-import { Badge as BitBadge } from "@/components/ui/8bit/badge";
-import { Input as BitInput } from "@/components/ui/8bit/input";
-import { Select as BitSelect, SelectContent as BitSelectContent, SelectGroup as BitSelectGroup, SelectItem as BitSelectItem, SelectLabel as BitSelectLabel, SelectTrigger as BitSelectTrigger, SelectValue as BitSelectValue } from "@/components/ui/8bit/select";
-import { Tabs as BitTabs, TabsList as BitTabsList, TabsContent as BitTabsContent, TabsTrigger as BitTabsTrigger } from "@/components/ui/8bit/tabs";
-import { Label as BitLabel } from "@/components/ui/8bit/label";
-import { Dialog as BitDialog, DialogTrigger as BitDialogTrigger, DialogHeader as BitDialogHeader, DialogFooter as BitDialogFooter, DialogDescription as BitDialogDescription, DialogTitle as BitDialogTitle, DialogContent as BitDialogContent, DialogClose as BitDialogClose } from "@/components/ui/8bit/dialog";
-import { Checkbox as BitCheckbox } from "@/components/ui/8bit/checkbox";
-
 // cn utility — frequently used in AI-generated components
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -93,24 +82,6 @@ const PACKAGE_REGISTRY: Record<string, any> = {
   "tailwind-merge": twMergeMod,
   // Local path aliases that AI may generate
   "@/lib/utils": { cn, default: { cn } },
-  // 8bitcn design system components
-  "@/components/ui/8bit": {
-    Button: BitButton,
-    Card: BitCard, CardHeader: BitCardHeader, CardFooter: BitCardFooter,
-    CardTitle: BitCardTitle, CardAction: BitCardAction,
-    CardDescription: BitCardDescription, CardContent: BitCardContent,
-    Badge: BitBadge,
-    Input: BitInput,
-    Select: BitSelect, SelectContent: BitSelectContent, SelectGroup: BitSelectGroup,
-    SelectItem: BitSelectItem, SelectLabel: BitSelectLabel,
-    SelectTrigger: BitSelectTrigger, SelectValue: BitSelectValue,
-    Tabs: BitTabs, TabsList: BitTabsList, TabsContent: BitTabsContent, TabsTrigger: BitTabsTrigger,
-    Label: BitLabel,
-    Dialog: BitDialog, DialogTrigger: BitDialogTrigger, DialogHeader: BitDialogHeader,
-    DialogFooter: BitDialogFooter, DialogDescription: BitDialogDescription,
-    DialogTitle: BitDialogTitle, DialogContent: BitDialogContent, DialogClose: BitDialogClose,
-    Checkbox: BitCheckbox,
-  },
 };
 
 /**

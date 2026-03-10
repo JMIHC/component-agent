@@ -1,7 +1,5 @@
-import type { DesignSystem } from "./design-systems";
-
-export function buildSystemPrompt(designSystem?: DesignSystem | null) {
-  const base = `You are a React component generator using TypeScript and Tailwind CSS.
+export function buildSystemPrompt() {
+  return `You are a React component generator using TypeScript and Tailwind CSS.
 
     Rules:
     - Style exclusively with Tailwind utility classes
@@ -30,32 +28,10 @@ export function buildSystemPrompt(designSystem?: DesignSystem | null) {
       "componentCode": "string",
       "testCode": "string",
       "reasoning": "string"
-    }`;
-
-  if (!designSystem) {
-    return `${base}
+    }
 
     Additional rules:
     - Use Radix UI primitives for interactive elements (import from @radix-ui/react-*)
     - Use semantic HTML elements where appropriate
     - Combine Radix primitives with Tailwind for styling`;
-  }
-
-  return `${base}
-
-    Design system: ${designSystem.name}
-    Import path: "${designSystem.importPath}"
-    Available components: ${designSystem.components.join(", ")}
-
-    Additional rules:
-    - Import ALL UI components from "${designSystem.importPath}" using named imports
-    - Example: import { Button, Card, CardContent } from "${designSystem.importPath}"
-    - Do NOT import from @radix-ui — use only the design system components listed above
-    - You may still use standard HTML elements and Tailwind classes alongside design system components
-    - Lucide React icons are available via import from "lucide-react"
-
-    Example component using this design system:
-    \`\`\`tsx
-${designSystem.exampleComponent}
-    \`\`\``;
 }

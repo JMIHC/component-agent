@@ -1,5 +1,4 @@
 "use client";
-"use no memo";
 import { useRef, useEffect, useState, useCallback } from "react";
 import { createHighlighter, type Highlighter } from "shiki";
 

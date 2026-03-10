@@ -4,7 +4,6 @@ import * as Tabs from "@radix-ui/react-tabs";
 import { parseResponse, GeneratedComponent } from "@/lib/parser";
 import { LivePreview } from "@/app/components/LivePreview";
 import { CodeEditor, CodeBlock } from "@/app/components/CodeEditor";
-import { DESIGN_SYSTEMS, type DesignSystemKey } from "@/lib/design-systems";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -18,7 +17,6 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editedCode, setEditedCode] = useState("");
-  const [selectedSystem, setSelectedSystem] = useState<DesignSystemKey>("none");
   const threadRef = useRef<HTMLDivElement>(null);
 
   const latestComponent = [...messages]
@@ -31,10 +29,7 @@ export default function Home() {
     }
   }, [messages]);
 
-  async function generate(
-    history: ChatMessage[],
-    system: DesignSystemKey
-  ) {
+  async function generate(history: ChatMessage[]) {
     setLoading(true);
     setError(null);
 
@@ -48,10 +43,7 @@ export default function Home() {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: apiMessages,
-          designSystem: DESIGN_SYSTEMS[system],
-        }),
+        body: JSON.stringify({ messages: apiMessages }),
       });
 
       const reader = res.body!.getReader();
@@ -93,22 +85,7 @@ export default function Home() {
     const nextMessages = [...messages, userMessage];
     setMessages(nextMessages);
     setInput("");
-    await generate(nextMessages, selectedSystem);
-  }
-
-  async function switchDesignSystem(key: DesignSystemKey) {
-    if (key === selectedSystem) return;
-    setSelectedSystem(key);
-    if (messages.length === 0) return;
-
-    const label = key === "none" ? "Default (Radix + Tailwind)" : key;
-    const switchMessage: ChatMessage = {
-      role: "user",
-      content: `Rebuild this component using the ${label} design system. Keep the same functionality and layout.`,
-    };
-    const nextMessages = [...messages, switchMessage];
-    setMessages(nextMessages);
-    await generate(nextMessages, key);
+    await generate(nextMessages);
   }
 
   return (
@@ -161,22 +138,6 @@ export default function Home() {
           }
           className="w-full h-24 p-4 border rounded-lg resize-none text-sm"
         />
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-500">Design system:</span>
-          {(Object.keys(DESIGN_SYSTEMS) as DesignSystemKey[]).map((key) => (
-            <button
-              key={key}
-              onClick={() => switchDesignSystem(key)}
-              className={`px-3 py-1 text-sm rounded-full border cursor-pointer transition-colors ${
-                selectedSystem === key
-                  ? "bg-blue-600 text-white border-blue-600"
-                  : "bg-white text-gray-700 border-gray-300 hover:border-gray-400"
-              }`}
-            >
-              {key === "none" ? "Default" : key}
-            </button>
-          ))}
-        </div>
         <button
           onClick={send}
           disabled={loading || !input.trim()}
