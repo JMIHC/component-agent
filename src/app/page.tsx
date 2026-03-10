@@ -4,6 +4,10 @@ import * as Tabs from "@radix-ui/react-tabs";
 import { parseResponse, GeneratedComponent } from "@/lib/parser";
 import { LivePreview } from "@/app/components/LivePreview";
 import { CodeEditor, CodeBlock } from "@/app/components/CodeEditor";
+import { DesignSystemPanel } from "@/app/components/DesignSystemPanel";
+import type { DesignSystem } from "@/lib/types/design-system";
+
+const CACHE_KEY = "component-agent:design-system";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -17,7 +21,24 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editedCode, setEditedCode] = useState("");
+  const [editedCssCode, setEditedCssCode] = useState("");
+  const [designSystem, setDesignSystem] = useState<DesignSystem | null>(null);
+  const [analyzingUrl, setAnalyzingUrl] = useState(false);
+  const [analyzeError, setAnalyzeError] = useState<string | null>(null);
+  const [refining, setRefining] = useState(false);
   const threadRef = useRef<HTMLDivElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
+  const cssPreviewRef = useRef<HTMLDivElement>(null);
+
+  // Load cached design system on mount
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) setDesignSystem(JSON.parse(cached));
+    } catch {
+      // ignore parse errors
+    }
+  }, []);
 
   const latestComponent = [...messages]
     .reverse()
@@ -28,6 +49,39 @@ export default function Home() {
       threadRef.current.scrollTop = threadRef.current.scrollHeight;
     }
   }, [messages]);
+
+  async function analyzeUrl(url: string) {
+    setAnalyzingUrl(true);
+    setAnalyzeError(null);
+
+    try {
+      const res = await fetch("/api/analyze-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setAnalyzeError(data.error || "Analysis failed");
+        return;
+      }
+
+      setDesignSystem(data.designSystem);
+      localStorage.setItem(CACHE_KEY, JSON.stringify(data.designSystem));
+    } catch (err) {
+      console.error(err);
+      setAnalyzeError("Failed to analyze URL. Check the console.");
+    } finally {
+      setAnalyzingUrl(false);
+    }
+  }
+
+  function clearDesignSystem() {
+    setDesignSystem(null);
+    localStorage.removeItem(CACHE_KEY);
+  }
 
   async function generate(history: ChatMessage[]) {
     setLoading(true);
@@ -40,10 +94,17 @@ export default function Home() {
           m.role === "assistant" ? JSON.stringify(m.component) : m.content,
       }));
 
+      const body: Record<string, unknown> = { messages: apiMessages };
+      if (designSystem) {
+        // Send design system without the screenshot to save payload size
+        const { screenshotBase64: _, ...ds } = designSystem;
+        body.designSystem = ds;
+      }
+
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: apiMessages }),
+        body: JSON.stringify(body),
       });
 
       const reader = res.body!.getReader();
@@ -69,11 +130,52 @@ export default function Home() {
       };
       setMessages([...history, assistantMessage]);
       setEditedCode(parsed.componentCode);
+      setEditedCssCode(parsed.cssComponentCode ?? "");
     } catch (err) {
       setError("Something went wrong. Check the console.");
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function matchCloser(targetRef: React.RefObject<HTMLDivElement | null>, code: string, setCode: (code: string) => void) {
+    if (!targetRef.current || !designSystem?.screenshotBase64 || !latestComponent) return;
+    setRefining(true);
+
+    try {
+      const { toPng } = await import("html-to-image");
+      const dataUrl = await toPng(targetRef.current);
+      const previewScreenshotBase64 = dataUrl.split(",")[1];
+
+      const res = await fetch("/api/refine-match", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentCode: code,
+          componentName: latestComponent.componentName,
+          previewScreenshotBase64,
+          targetScreenshotBase64: designSystem.screenshotBase64,
+        }),
+      });
+
+      const reader = res.body!.getReader();
+      const decoder = new TextDecoder();
+      let raw = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        raw += decoder.decode(value);
+      }
+
+      const parsed = parseResponse(raw);
+      if (parsed) {
+        setCode(parsed.componentCode);
+      }
+    } catch (err) {
+      console.error("Match closer failed:", err);
+    } finally {
+      setRefining(false);
     }
   }
 
@@ -88,9 +190,22 @@ export default function Home() {
     await generate(nextMessages);
   }
 
+  const tabs = ["preview", "component"];
+  if (latestComponent?.cssComponentCode) tabs.push("css-preview", "css");
+  tabs.push("tests");
+
   return (
     <main className="p-8 max-w-4xl mx-auto space-y-6">
       <h1 className="text-2xl font-bold">Component Agent</h1>
+
+      {/* Design system setup */}
+      <DesignSystemPanel
+        designSystem={designSystem}
+        loading={analyzingUrl}
+        error={analyzeError}
+        onAnalyze={analyzeUrl}
+        onClear={clearDesignSystem}
+      />
 
       {/* Conversation thread */}
       {messages.length > 0 && (
@@ -165,7 +280,7 @@ export default function Home() {
 
           <Tabs.Root defaultValue="preview">
             <Tabs.List className="flex gap-1 border-b mb-4">
-              {["preview", "component", "tests", "reasoning"].map((tab) => (
+              {tabs.map((tab) => (
                 <Tabs.Trigger
                   key={tab}
                   value={tab}
@@ -176,13 +291,25 @@ export default function Home() {
                     data-[state=active]:border-b-2
                     data-[state=active]:border-blue-600"
                 >
-                  {tab}
+                  {tab === "css" ? "CSS" : tab === "css-preview" ? "CSS Preview" : tab}
                 </Tabs.Trigger>
               ))}
             </Tabs.List>
 
             <Tabs.Content value="preview">
+              {designSystem && (
+                <div className="flex justify-end mb-2">
+                  <button
+                    onClick={() => matchCloser(previewRef, editedCode, setEditedCode)}
+                    disabled={refining}
+                    className="px-3 py-1 text-xs rounded border border-gray-300 bg-white text-gray-600 hover:bg-gray-100 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {refining ? "Refining..." : "Match closer"}
+                  </button>
+                </div>
+              )}
               <LivePreview
+                ref={previewRef}
                 componentCode={editedCode}
                 componentName={latestComponent.componentName}
               />
@@ -192,14 +319,34 @@ export default function Home() {
               <CodeEditor value={editedCode} onChange={setEditedCode} />
             </Tabs.Content>
 
+            {latestComponent.cssComponentCode && (
+              <>
+                <Tabs.Content value="css-preview">
+                  {designSystem && (
+                    <div className="flex justify-end mb-2">
+                      <button
+                        onClick={() => matchCloser(cssPreviewRef, editedCssCode, setEditedCssCode)}
+                        disabled={refining}
+                        className="px-3 py-1 text-xs rounded border border-gray-300 bg-white text-gray-600 hover:bg-gray-100 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {refining ? "Refining..." : "Match closer"}
+                      </button>
+                    </div>
+                  )}
+                  <LivePreview
+                    ref={cssPreviewRef}
+                    componentCode={editedCssCode}
+                    componentName={latestComponent.componentName}
+                  />
+                </Tabs.Content>
+                <Tabs.Content value="css">
+                  <CodeEditor value={editedCssCode} onChange={setEditedCssCode} />
+                </Tabs.Content>
+              </>
+            )}
+
             <Tabs.Content value="tests">
               <CodeBlock code={latestComponent.testCode} />
-            </Tabs.Content>
-
-            <Tabs.Content value="reasoning">
-              <p className="p-4 bg-gray-50 border rounded-lg text-sm text-gray-700 leading-relaxed">
-                {latestComponent.reasoning}
-              </p>
             </Tabs.Content>
           </Tabs.Root>
         </div>

@@ -103,6 +103,10 @@ export function prepareCode(
   // Strip 'use client' / 'use server' directives
   code = code.replace(/^\s*['"]use (client|server)['"]\s*;?\s*$/gm, "");
 
+  // Strip jsx attribute from <style> tags to avoid React DOM warnings
+  code = code.replace(/<style\s+jsx\s*>/g, "<style>");
+  code = code.replace(/<style\s+jsx\s*\{true\}\s*>/g, "<style>");
+
   // Strip import type lines (no runtime value)
   code = code.replace(/^import\s+type\s+.*$/gm, "");
 

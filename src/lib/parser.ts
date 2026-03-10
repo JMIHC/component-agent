@@ -1,6 +1,7 @@
 export interface GeneratedComponent {
   componentName: string;
   componentCode: string;
+  cssComponentCode?: string;
   testCode: string;
   reasoning: string;
 }

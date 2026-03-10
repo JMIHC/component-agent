@@ -1,6 +1,6 @@
 "use client";
 "use no memo";
-import { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { LiveProvider, LivePreview as Preview, LiveError } from "react-live";
 import { prepareCode } from "@/lib/scope";
 
@@ -16,13 +16,10 @@ function useTailwindCDN() {
   }, []);
 }
 
-export function LivePreview({
-  componentCode,
-  componentName,
-}: {
-  componentCode: string;
-  componentName: string;
-}) {
+export const LivePreview = React.forwardRef<
+  HTMLDivElement,
+  { componentCode: string; componentName: string }
+>(function LivePreviewInner({ componentCode, componentName }, ref) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   useTailwindCDN();
@@ -45,12 +42,12 @@ export function LivePreview({
 
   if (!mounted) {
     return (
-      <div className="rounded-lg overflow-hidden bg-white" style={{ minHeight: 400 }} />
+      <div ref={ref} className="rounded-lg overflow-hidden bg-white" style={{ minHeight: 400 }} />
     );
   }
 
   return (
-    <div className="rounded-lg overflow-hidden bg-white" style={{ minHeight: 400 }}>
+    <div ref={ref} className="rounded-lg overflow-hidden bg-white" style={{ minHeight: 400 }}>
       <LiveProvider code={prepared.code} scope={scope} noInline>
         <div className="p-8">
           <Preview />
@@ -59,4 +56,4 @@ export function LivePreview({
       </LiveProvider>
     </div>
   );
-}
+});

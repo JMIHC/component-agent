@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "eval": "npx tsx --tsconfig tsconfig.json evals/eval.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
@@ -35,10 +36,14 @@
     "@radix-ui/react-toggle-group": "^1.1.11",
     "@radix-ui/react-toolbar": "^1.1.11",
     "@radix-ui/react-tooltip": "^1.2.8",
+    "autoevals": "^0.0.132",
+    "braintrust": "^3.3.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "html-to-image": "^1.11.13",
     "lucide-react": "^0.575.0",
     "next": "16.1.6",
+    "playwright-core": "^1.58.2",
     "radix-ui": "^1.4.3",
     "react": "19.2.3",
     "react-dom": "19.2.3",
