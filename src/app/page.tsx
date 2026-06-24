@@ -269,6 +269,12 @@ export default function Home() {
           }
           className="w-full h-24 p-4 border rounded-lg resize-none text-sm"
         />
+        {!designSystem && messages.length === 0 && (
+          <p className="text-xs text-gray-500">
+            Tip: analyze a reference site above first so generated components
+            match its design.
+          </p>
+        )}
         <button
           onClick={send}
           disabled={loading || !input.trim()}
