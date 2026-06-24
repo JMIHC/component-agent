@@ -1,4 +1,25 @@
-import { chromium } from "playwright-core";
+import { chromium, type Page } from "playwright-core";
+import Browserbase from "@browserbasehq/sdk";
+
+const VIEWPORT = { width: 1280, height: 900 };
+
+async function getPage(): Promise<{ page: Page; cleanup: () => Promise<void> }> {
+  const apiKey = process.env.BROWSERBASE_API_KEY;
+  const projectId = process.env.BROWSERBASE_PROJECT_ID;
+
+  if (apiKey && projectId) {
+    const bb = new Browserbase({ apiKey });
+    const session = await bb.sessions.create({ projectId });
+    const browser = await chromium.connectOverCDP(session.connectUrl);
+    const page = browser.contexts()[0].pages()[0];
+    await page.setViewportSize(VIEWPORT);
+    return { page, cleanup: () => browser.close() };
+  }
+
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage({ viewport: VIEWPORT });
+  return { page, cleanup: () => browser.close() };
+}
 
 export interface ExtractedStyles {
   computedStyles: {
@@ -30,10 +51,10 @@ const CSS_PROPERTIES = [
 export async function extractStylesFromUrl(
   url: string
 ): Promise<{ computedStyles: ExtractedStyles; screenshotBase64: string }> {
-  const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  const { page, cleanup } = await getPage();
 
-  await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
+  try {
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
   // Allow a brief settle for JS-rendered content and lazy styles
   await page.waitForTimeout(3000);
 
@@ -176,11 +197,12 @@ export async function extractStylesFromUrl(
     };
   }, [...CSS_PROPERTIES]);
 
-  // Use viewport-only screenshot to stay within Claude's 8000px image limit
-  const screenshotBuffer = await page.screenshot({ fullPage: false });
-  const screenshotBase64 = screenshotBuffer.toString("base64");
+    // Use viewport-only screenshot to stay within Claude's 8000px image limit
+    const screenshotBuffer = await page.screenshot({ fullPage: false });
+    const screenshotBase64 = screenshotBuffer.toString("base64");
 
-  await browser.close();
-
-  return { computedStyles, screenshotBase64 };
+    return { computedStyles, screenshotBase64 };
+  } finally {
+    await cleanup();
+  }
 }
