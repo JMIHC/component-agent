@@ -106,10 +106,14 @@ export function DesignSystemPanel({
       </label>
       <div className="flex gap-2">
         <input
-          type="url"
+          type="text"
+          inputMode="url"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://example.com"
+          placeholder="example.com"
           className="flex-1 px-3 py-2 border rounded-lg text-sm"
         />
         <button
