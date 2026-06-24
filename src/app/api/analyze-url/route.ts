@@ -3,6 +3,25 @@ import { analyzeDesignSystem } from "@/lib/analyze-design-system";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/turnstile";
 
+function normalizeUrl(input: string): string | null {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+
+  const candidate = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(candidate);
+  } catch {
+    return null;
+  }
+
+  if (!["http:", "https:"].includes(parsed.protocol)) return null;
+  if (!parsed.hostname.includes(".")) return null;
+
+  return parsed.toString();
+}
+
 export async function POST(req: Request) {
   const { url, turnstileToken } = await req.json();
 
@@ -16,28 +35,19 @@ export async function POST(req: Request) {
     return Response.json({ error: "URL is required" }, { status: 400 });
   }
 
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
+  const normalized = normalizeUrl(url);
+  if (!normalized) {
     return Response.json({ error: "Invalid URL" }, { status: 400 });
-  }
-
-  if (!["http:", "https:"].includes(parsed.protocol)) {
-    return Response.json(
-      { error: "Only http and https URLs are supported" },
-      { status: 400 }
-    );
   }
 
   try {
     const { computedStyles, screenshotBase64 } =
-      await extractStylesFromUrl(url);
+      await extractStylesFromUrl(normalized);
 
     const designSystem = await analyzeDesignSystem(
       computedStyles,
       screenshotBase64,
-      url
+      normalized
     );
 
     return Response.json({ designSystem });
