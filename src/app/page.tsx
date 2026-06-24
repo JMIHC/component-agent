@@ -1,6 +1,7 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import * as Tabs from "@radix-ui/react-tabs";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { parseResponse, GeneratedComponent } from "@/lib/parser";
 import { LivePreview } from "@/app/components/LivePreview";
 import { CodeEditor, CodeBlock } from "@/app/components/CodeEditor";
@@ -8,6 +9,7 @@ import { DesignSystemPanel } from "@/app/components/DesignSystemPanel";
 import type { DesignSystem } from "@/lib/types/design-system";
 
 const CACHE_KEY = "component-agent:design-system";
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -29,6 +31,16 @@ export default function Home() {
   const threadRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   const cssPreviewRef = useRef<HTMLDivElement>(null);
+  const turnstileRef = useRef<TurnstileInstance | null>(null);
+
+  async function getTurnstileToken(): Promise<string | undefined> {
+    if (!TURNSTILE_SITE_KEY) return undefined;
+    const widget = turnstileRef.current;
+    if (!widget) return undefined;
+    const token = await widget.getResponsePromise();
+    widget.reset();
+    return token ?? undefined;
+  }
 
   // Load cached design system on mount
   useEffect(() => {
@@ -55,10 +67,11 @@ export default function Home() {
     setAnalyzeError(null);
 
     try {
+      const turnstileToken = await getTurnstileToken();
       const res = await fetch("/api/analyze-url", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url, turnstileToken }),
       });
 
       const data = await res.json();
@@ -100,6 +113,7 @@ export default function Home() {
         const { screenshotBase64: _, ...ds } = designSystem;
         body.designSystem = ds;
       }
+      body.turnstileToken = await getTurnstileToken();
 
       const res = await fetch("/api/generate", {
         method: "POST",
@@ -148,6 +162,7 @@ export default function Home() {
       const dataUrl = await toPng(targetRef.current);
       const previewScreenshotBase64 = dataUrl.split(",")[1];
 
+      const turnstileToken = await getTurnstileToken();
       const res = await fetch("/api/refine-match", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -156,6 +171,7 @@ export default function Home() {
           componentName: latestComponent.componentName,
           previewScreenshotBase64,
           targetScreenshotBase64: designSystem.screenshotBase64,
+          turnstileToken,
         }),
       });
 
@@ -264,6 +280,13 @@ export default function Home() {
               ? "Generate"
               : "Refine"}
         </button>
+        {TURNSTILE_SITE_KEY && (
+          <Turnstile
+            ref={turnstileRef}
+            siteKey={TURNSTILE_SITE_KEY}
+            options={{ size: "flexible" }}
+          />
+        )}
       </div>
 
       {/* Error state */}

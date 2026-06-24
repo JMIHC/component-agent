@@ -1,8 +1,16 @@
 import { extractStylesFromUrl } from "@/lib/extract-styles";
 import { analyzeDesignSystem } from "@/lib/analyze-design-system";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { verifyTurnstile } from "@/lib/turnstile";
 
 export async function POST(req: Request) {
-  const { url } = await req.json();
+  const { url, turnstileToken } = await req.json();
+
+  const turnstile = await verifyTurnstile(req, turnstileToken);
+  if (!turnstile.ok) return turnstile.response;
+
+  const limit = await checkRateLimit(req);
+  if (!limit.ok) return limit.response;
 
   if (!url || typeof url !== "string") {
     return Response.json({ error: "URL is required" }, { status: 400 });
