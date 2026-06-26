@@ -9,7 +9,7 @@ export async function analyzeDesignSystem(
 ): Promise<DesignSystem> {
   const message = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
-    max_tokens: 4096,
+    max_tokens: 16384,
     messages: [
       {
         role: "user",
@@ -89,6 +89,12 @@ Other rules:
       },
     ],
   });
+
+  if (message.stop_reason === "max_tokens") {
+    throw new Error(
+      "Design system analysis exceeded max_tokens — site is too large to summarize in one pass. Try a simpler URL or raise max_tokens."
+    );
+  }
 
   const text =
     message.content[0].type === "text" ? message.content[0].text : "";

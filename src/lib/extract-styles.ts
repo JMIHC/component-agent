@@ -7,23 +7,17 @@ async function getPage(): Promise<{ page: Page; cleanup: () => Promise<void> }> 
   const apiKey = process.env.BROWSERBASE_API_KEY;
   const projectId = process.env.BROWSERBASE_PROJECT_ID;
 
-  if (apiKey && projectId) {
-    const bb = new Browserbase({ apiKey });
-    const session = await bb.sessions.create({ projectId });
-    const browser = await chromium.connectOverCDP(session.connectUrl);
-    const page = browser.contexts()[0].pages()[0];
-    await page.setViewportSize(VIEWPORT);
-    return { page, cleanup: () => browser.close() };
-  }
-
-  if (process.env.NODE_ENV === "production") {
+  if (!apiKey || !projectId) {
     throw new Error(
-      "BROWSERBASE_API_KEY and BROWSERBASE_PROJECT_ID are required in production"
+      "BROWSERBASE_API_KEY and BROWSERBASE_PROJECT_ID are required"
     );
   }
 
-  const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage({ viewport: VIEWPORT });
+  const bb = new Browserbase({ apiKey });
+  const session = await bb.sessions.create({ projectId });
+  const browser = await chromium.connectOverCDP(session.connectUrl);
+  const page = browser.contexts()[0].pages()[0];
+  await page.setViewportSize(VIEWPORT);
   return { page, cleanup: () => browser.close() };
 }
 
