@@ -147,6 +147,16 @@ export default function Home() {
         body: JSON.stringify(body),
       });
 
+      if (!res.ok) {
+        let msg = `Request failed (${res.status})`;
+        try {
+          const errBody = await res.json();
+          if (errBody?.error) msg = errBody.error;
+        } catch {}
+        setError(msg);
+        return;
+      }
+
       const reader = res.body!.getReader();
       const decoder = new TextDecoder();
       let raw = "";
@@ -200,6 +210,16 @@ export default function Home() {
           turnstileToken,
         }),
       });
+
+      if (!res.ok) {
+        let msg = `Request failed (${res.status})`;
+        try {
+          const errBody = await res.json();
+          if (errBody?.error) msg = errBody.error;
+        } catch {}
+        console.error("Match closer failed:", msg);
+        return;
+      }
 
       const reader = res.body!.getReader();
       const decoder = new TextDecoder();

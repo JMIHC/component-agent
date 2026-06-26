@@ -14,10 +14,20 @@ export async function POST(req: Request) {
 
   const message = await anthropic.messages.create({
     model: "claude-sonnet-4-6",
-    max_tokens: 8192,
+    max_tokens: 16000,
     system: buildSystemPrompt(designSystem ?? undefined),
     messages,
   });
+
+  if (message.stop_reason === "max_tokens") {
+    return Response.json(
+      {
+        error:
+          "Generated component exceeded max_tokens. Try a simpler request or split into smaller components.",
+      },
+      { status: 500 }
+    );
+  }
 
   const text =
     message.content[0].type === "text" ? message.content[0].text : "";

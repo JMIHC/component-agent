@@ -21,7 +21,13 @@ export function parseResponse(raw: string): GeneratedComponent | null {
     if (start === -1 || end === -1) return null;
 
     const jsonOnly = cleaned.slice(start, end + 1);
-    return JSON.parse(jsonOnly);
+    const parsed = JSON.parse(jsonOnly);
+
+    if (typeof parsed?.componentCode !== "string" || !parsed.componentCode) {
+      return null;
+    }
+
+    return parsed;
   } catch (err) {
     console.error("Parse error:", err);
     return null;
