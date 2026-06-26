@@ -3,6 +3,8 @@ import { buildSystemPrompt } from "@/lib/prompt";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/turnstile";
 
+export const maxDuration = 60;
+
 export async function POST(req: Request) {
   const { messages, designSystem, turnstileToken } = await req.json();
 
@@ -12,24 +14,38 @@ export async function POST(req: Request) {
   const limit = await checkRateLimit(req);
   if (!limit.ok) return limit.response;
 
-  const message = await anthropic.messages.create({
+  const stream = anthropic.messages.stream({
     model: "claude-sonnet-4-6",
     max_tokens: 16000,
     system: buildSystemPrompt(designSystem ?? undefined),
     messages,
   });
 
-  if (message.stop_reason === "max_tokens") {
-    return Response.json(
-      {
-        error:
-          "Generated component exceeded max_tokens. Try a simpler request or split into smaller components.",
-      },
-      { status: 500 }
-    );
-  }
+  const encoder = new TextEncoder();
+  const readable = new ReadableStream({
+    async start(controller) {
+      try {
+        for await (const event of stream) {
+          if (
+            event.type === "content_block_delta" &&
+            event.delta.type === "text_delta"
+          ) {
+            controller.enqueue(encoder.encode(event.delta.text));
+          }
+        }
+        const final = await stream.finalMessage();
+        if (final.stop_reason === "max_tokens") {
+          console.warn("generate hit max_tokens — output truncated");
+        }
+      } catch (err) {
+        console.error("generate stream error:", err);
+      } finally {
+        controller.close();
+      }
+    },
+  });
 
-  const text =
-    message.content[0].type === "text" ? message.content[0].text : "";
-  return new Response(text);
+  return new Response(readable, {
+    headers: { "Content-Type": "text/plain; charset=utf-8" },
+  });
 }

@@ -2,6 +2,8 @@ import { anthropic } from "@/lib/anthropic";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/turnstile";
 
+export const maxDuration = 60;
+
 export async function POST(req: Request) {
   const {
     currentCode,
@@ -17,9 +19,9 @@ export async function POST(req: Request) {
   const limit = await checkRateLimit(req);
   if (!limit.ok) return limit.response;
 
-  const message = await anthropic.messages.create({
+  const stream = anthropic.messages.stream({
     model: "claude-sonnet-4-6",
-    max_tokens: 8192,
+    max_tokens: 16000,
     messages: [
       {
         role: "user",
@@ -74,7 +76,31 @@ Respond ONLY with a JSON object, no markdown fences:
     ],
   });
 
-  const text =
-    message.content[0].type === "text" ? message.content[0].text : "";
-  return new Response(text);
+  const encoder = new TextEncoder();
+  const readable = new ReadableStream({
+    async start(controller) {
+      try {
+        for await (const event of stream) {
+          if (
+            event.type === "content_block_delta" &&
+            event.delta.type === "text_delta"
+          ) {
+            controller.enqueue(encoder.encode(event.delta.text));
+          }
+        }
+        const final = await stream.finalMessage();
+        if (final.stop_reason === "max_tokens") {
+          console.warn("refine-match hit max_tokens — output truncated");
+        }
+      } catch (err) {
+        console.error("refine-match stream error:", err);
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(readable, {
+    headers: { "Content-Type": "text/plain; charset=utf-8" },
+  });
 }
