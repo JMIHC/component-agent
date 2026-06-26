@@ -60,9 +60,13 @@ export async function extractStylesFromUrl(
   const { page, cleanup } = await getPage();
 
   try {
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
-  // Allow a brief settle for JS-rendered content and lazy styles
-  await page.waitForTimeout(3000);
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 15000 });
+    // Settle JS-rendered styles, but cap at 2s so fast pages don't pay full cost.
+    try {
+      await page.waitForLoadState("networkidle", { timeout: 2000 });
+    } catch {
+      // Networkidle timeout is fine — continue with whatever rendered so far.
+    }
 
   const computedStyles = await page.evaluate((properties: string[]) => {
     const selectors = [
@@ -168,17 +172,18 @@ export async function extractStylesFromUrl(
       }
     }
 
-    // Convert per-element Sets to arrays
+    // Convert per-element Sets to arrays, capping each to the first 5 values
+    // to keep the downstream LLM payload manageable.
+    const MAX_VALUES_PER_PROP = 5;
     const perElementResult: Record<string, Record<string, string[]>> = {};
     for (const [sel, props] of Object.entries(perElementStyles)) {
       perElementResult[sel] = {};
       for (const [prop, vals] of Object.entries(props)) {
-        const arr = Array.from(vals);
+        const arr = Array.from(vals).slice(0, MAX_VALUES_PER_PROP);
         if (arr.length > 0) {
           perElementResult[sel][prop] = arr;
         }
       }
-      // Remove selectors with no non-default styles
       if (Object.keys(perElementResult[sel]).length === 0) {
         delete perElementResult[sel];
       }

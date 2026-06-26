@@ -12,6 +12,8 @@
     "@anthropic-ai/sdk": "^0.78.0",
     "@browserbasehq/sdk": "^2.14.1",
     "@marsidev/react-turnstile": "^1.5.3",
+    "@netlify/blobs": "^10.7.9",
+    "@netlify/functions": "^5.3.0",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-avatar": "^1.1.11",

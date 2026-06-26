@@ -68,21 +68,47 @@ export default function Home() {
 
     try {
       const turnstileToken = await getTurnstileToken();
-      const res = await fetch("/api/analyze-url", {
+      const kickoff = await fetch("/api/analyze-url", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url, turnstileToken }),
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        setAnalyzeError(data.error || "Analysis failed");
+      const kickoffData = await kickoff.json();
+      if (!kickoff.ok) {
+        setAnalyzeError(kickoffData.error || "Analysis failed");
         return;
       }
 
-      setDesignSystem(data.designSystem);
-      localStorage.setItem(CACHE_KEY, JSON.stringify(data.designSystem));
+      const { jobId } = kickoffData as { jobId: string };
+      const POLL_INTERVAL_MS = 1500;
+      const POLL_TIMEOUT_MS = 3 * 60 * 1000;
+      const deadline = Date.now() + POLL_TIMEOUT_MS;
+
+      while (Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+        const statusRes = await fetch(
+          `/api/analyze-url/status?id=${encodeURIComponent(jobId)}`
+        );
+        const statusData = await statusRes.json();
+
+        if (!statusRes.ok) {
+          setAnalyzeError(statusData.error || "Analysis failed");
+          return;
+        }
+
+        if (statusData.status === "done") {
+          setDesignSystem(statusData.result);
+          localStorage.setItem(CACHE_KEY, JSON.stringify(statusData.result));
+          return;
+        }
+        if (statusData.status === "error") {
+          setAnalyzeError(statusData.error || "Analysis failed");
+          return;
+        }
+      }
+
+      setAnalyzeError("Analysis timed out. Try again.");
     } catch (err) {
       console.error(err);
       setAnalyzeError("Failed to analyze URL. Check the console.");

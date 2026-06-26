@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { DesignSystem } from "@/lib/types/design-system";
 
 interface DesignSystemPanelProps {
@@ -27,20 +27,7 @@ export function DesignSystemPanel({
   }
 
   if (loading) {
-    return (
-      <div className="border rounded-lg p-4 bg-gray-50">
-        <div className="flex items-center gap-3 text-sm text-gray-600">
-          <span className="animate-spin text-lg">⟳</span>
-          <div>
-            <p className="font-medium">Analyzing design system...</p>
-            <p className="text-gray-400">
-              Rendering page, extracting styles, and analyzing with Claude
-              Vision. This may take 15-30 seconds.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
+    return <AnalyzingIndicator />;
   }
 
   if (designSystem) {
@@ -126,5 +113,63 @@ export function DesignSystemPanel({
       </div>
       {error && <p className="text-xs text-red-600">{error}</p>}
     </form>
+  );
+}
+
+function AnalyzingIndicator() {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    const start = Date.now();
+    const id = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - start) / 1000));
+    }, 250);
+    return () => clearInterval(id);
+  }, []);
+
+  const stage =
+    elapsed < 6
+      ? "Launching browser session"
+      : elapsed < 14
+        ? "Rendering page and extracting styles"
+        : elapsed < 30
+          ? "Analyzing with Claude Vision"
+          : "Wrapping up";
+
+  return (
+    <div className="border rounded-lg p-4 bg-gray-50">
+      <div className="flex items-center gap-3 text-sm text-gray-600">
+        <span
+          aria-hidden
+          className="inline-block w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin shrink-0"
+        />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="font-medium">Analyzing design system…</p>
+            <span className="text-xs tabular-nums text-gray-500">
+              {elapsed}s
+            </span>
+          </div>
+          <p className="text-gray-400 text-xs mt-0.5">{stage}</p>
+        </div>
+      </div>
+      <div
+        role="progressbar"
+        aria-label="Analyzing design system"
+        className="mt-3 h-1 w-full overflow-hidden rounded-full bg-gray-200"
+      >
+        <div className="h-full w-1/3 rounded-full bg-blue-500 animate-[indeterminate_1.4s_ease-in-out_infinite]" />
+      </div>
+      <style jsx>{`
+        @keyframes indeterminate {
+          0% {
+            transform: translateX(-100%);
+          }
+          100% {
+            transform: translateX(400%);
+          }
+        }
+      `}</style>
+    </div>
   );
 }
