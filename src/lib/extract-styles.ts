@@ -16,6 +16,12 @@ async function getPage(): Promise<{ page: Page; cleanup: () => Promise<void> }> 
     return { page, cleanup: () => browser.close() };
   }
 
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "BROWSERBASE_API_KEY and BROWSERBASE_PROJECT_ID are required in production"
+    );
+  }
+
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: VIEWPORT });
   return { page, cleanup: () => browser.close() };
