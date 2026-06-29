@@ -8,7 +8,7 @@ const ratelimit =
   url && token
     ? new Ratelimit({
         redis: new Redis({ url, token }),
-        limiter: Ratelimit.slidingWindow(5, "1 h"),
+        limiter: Ratelimit.slidingWindow(30, "1 h"),
         analytics: true,
         prefix: "component-agent",
       })
